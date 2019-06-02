@@ -2,11 +2,12 @@
 :- set_prolog_flag(legacy_char_classification,on).
 :- set_prolog_flag(toplevel_print_options,
      [quoted(true),numbervars(true),portrayed(true),max_depth(100)]).
+:- use_module(library(lists)).
+:- dynamic elore_tekintes/1.
 
-jatek_kor :-
-    use_module(library(lists)),
+start :-
     melyseg_beolvas(Melyseg),
-%    (retract(elore_tekintes(_)) ; true),!, assert(elore_tekintes(Melyseg)),
+    (retract(elore_tekintes(_)) ; true),!, assert(elore_tekintes(Melyseg)),
 	init(Tabla,Jatekos), 
 	jatek_kor(Tabla,Jatekos,Eredmeny).
 
@@ -15,8 +16,7 @@ melyseg_beolvas(Melyseg) :-
     (kozott(M, 1,4)  -> Melyseg = M ; melyseg_beolvas(Melyseg)).
 
 kozott(M,A,B) :-
-    A =< M,
-    M =< B.
+	member(M,[1,2,3,4]).
 
 jatek_kor(Tabla,Jatekos,Eredmeny) :-
 	%format('play1', []),
@@ -229,7 +229,8 @@ kiiras(Tabla).
 
      nem_ures(Hs) :- Hs \== [0,0,0,0,0,0].
 
-     elore_tekintes(2).
+
+    elore_tekintes(2).
 init(tabla([N,N,N,N,N,N],0,[N,N,N,N,N,N],0),ellenfel) :-
 	darabok(N).
 
