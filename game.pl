@@ -43,12 +43,12 @@ lepes_valasztas(Tabla,computer,Lepes) :-
 	alpha_beta(Melyseg,Tabla,-40,40,Lepes,Ertek),
 	nl,	write(Lepes), nl.
     lepes_valasztas(Tabla,ellenfel,Lepes) :- 
-		lepes_beolvas(Lepes).
-		%nl, format('Kerem valasszon lepes(eke)t: ',[]), read(Lepes),szabalyos_e(Lepes).
+		lepes_beolvas(Lepes, Tabla).
+		%nl, format('Kerem valasszon lepes(eke)t: ',[]), read(Lepes),szabalyos_e(Lepes, Tabla).
 
-lepes_beolvas(Lepes) :-
+lepes_beolvas(Lepes, Tabla) :-
 	nl, format('Kerem valasszon lepes(eke)t: ',[]), read(L)
-	,(szabalyos_e(L) -> Lepes = L ; lepes_beolvas(Lepes) ).
+	,(szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) ).
     
 
 kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
@@ -195,8 +195,12 @@ n_helyettesites(N,[X|Xs],Y,[X|Xs1]) :-
      kovetkezo_jatekos(computer,ellenfel).	
      kovetkezo_jatekos(ellenfel,computer).
 
-     szabalyos_e([N|Ns]) :-  0 < N, N < 7, szabalyos_e(Ns).
-     szabalyos_e([]).
+     szabalyos_e([N|Ns], Tabla) :- 
+	   0 < N, N < 7,
+	   darab(N,Tabla,Kovek),
+	   Kovek > 0,
+       szabalyos_e(Ns, Tabla).
+     szabalyos_e([],Tabla).
 
      csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
 
