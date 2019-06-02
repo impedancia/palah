@@ -1,23 +1,33 @@
+%% -*- Mode: Prolog; coding: utf-8 -*-
+:- set_prolog_flag(legacy_char_classification,on).
+:- set_prolog_flag(toplevel_print_options,
+     [quoted(true),numbervars(true),portrayed(true),max_depth(100)]).
 
- /* Play framework  */
-
-play(Game) :-
+jatek_kor :-
     use_module(library(lists)),
-%	ensure_loaded('alpha_beta.pl'),
-	initialize(Game,Board,Player), 
-	display_game(Board,Player),
-	play(Board,Player,Result).
+    melyseg_beolvas(Melyseg),
+%    (retract(elore_tekintes(_)) ; true),!, assert(elore_tekintes(Melyseg)),
+	init(Tabla,Jatekos), 
+	jatek_kor(Tabla,Jatekos,Eredmeny).
 
-play(Board,Player,Result) :-
-	format('play1', []),
-    game_over(Board,Player,Result), !, announce(Result).
-play(Board,Player,Result) :-
-	format('play2', []),
-	choose_move(Board,Player,Move),
-	move(Move,Board,Board1),
-    next_player(Player,Player1),
-    !, 
-    play(Board1,Player1,Result).
+melyseg_beolvas(Melyseg) :-
+    nl, format('Kerem valasszon nehezseget (1..4): ',[]), read(M),
+    (kozott(M, 1,4)  -> Melyseg = M ; melyseg_beolvas(Melyseg)).
+
+kozott(M,A,B) :-
+    A =< M,
+    M =< B.
+
+jatek_kor(Tabla,Jatekos,Eredmeny) :-
+	%format('play1', []),
+    tabla_megjelenites(Tabla,Jatekos),
+    vege_van_e(Tabla,Jatekos,Eredmeny), !, eredmenyhirdetes(Eredmeny).
+jatek_kor(Tabla,Jatekos,Eredmeny) :-
+	%format('play2', []),
+	lepes_valasztas(Tabla,Jatekos,Lepes),
+	lep(Lepes,Tabla,Tabla1),
+	kovetkezo_jatekos(Jatekos,Jatekos1),!, 
+    jatek_kor(Tabla1,Jatekos1,Eredmeny).
 
 tab(N) :-
     build(' ',N,O),
@@ -27,211 +37,196 @@ build(E,N,L):-
     length(L,N),
     maplist(=(E),L).
 
- /* Choosing a move by minimax with alpha-beta cut-off  */
 
-     choose_move(Position,computer,Move) :-
-        lookahead(Depth), 
-	alpha_beta(Depth,Position,-40,40,Move,Value),
-	nl, write(Move), nl.
-        choose_move(Position,opponent,Move) :- 
-	nl, format('please make move',[]), read(Move), legal(Move).
+lepes_valasztas(Tabla,computer,Lepes) :-
+    elore_tekintes(Melyseg), 
+	alpha_beta(Melyseg,Tabla,-40,40,Lepes,Ertek),
+	nl,	write(Lepes), nl.
+    lepes_valasztas(Tabla,ellenfel,Lepes) :- 
+		lepes_beolvas(Lepes).
+		%nl, format('Kerem valasszon lepes(eke)t: ',[]), read(Lepes),szabalyos_e(Lepes).
 
-evaluate_and_choose([Move|Moves],Position,D,Alpha,Beta,Move1,BestMove) :-
-		format('eval_choose1\r\n',[]),
-		move(Move,Position,Position1),
-		alpha_beta(D,Position1,Alpha,Beta,MoveX,Value),
-		format('Value: ~d\r\n',[Value]),
-        Value1 is -Value,   
-        cutoff(Move,Value1,D,Alpha,Beta,Moves,Position,Move1,BestMove).
+lepes_beolvas(Lepes) :-
+	nl, format('Kerem valasszon lepes(eke)t: ',[]), read(L)
+	,(szabalyos_e(L) -> Lepes = L ; lepes_beolvas(Lepes) ).
+    
 
-    evaluate_and_choose([],Position,D,Alpha,Beta,Move,(Move,Alpha)) :-
-        format('eval_choose2\r\n',[]).
+kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
+		%format('eval_choose1\r\n',[]),
+		lep(Lepes,Tabla,Tabla1),
+		alpha_beta(D,Tabla1,Alpha,Beta,LepesX,Ertek),
+		%format('Ertek: ~d\r\n',[Ertek]),
+        Ertek1 is -Ertek,   
+        levag(Lepes,Ertek1,D,Alpha,Beta,Lepesek,Tabla,Lepes1,LegjobbLepes).
 
-    alpha_beta(0,Position,Alpha,Beta,Move,Value) :- 
-		format('alpha_beta1\r\n',[]),
-		value(Position,Value).
-    alpha_beta(D,Position,Alpha,Beta,Move,Value) :- 
-		format('alpha_beta2\r\n',[]),
-		findall(M,move(Position,M),Moves),
+    kiertekel([],Tabla,D,Alpha,Beta,Lepes,(Lepes,Alpha)).
+        %format('eval_choose2\r\n',[]).
+
+    alpha_beta(0,Tabla,Alpha,Beta,Lepes,Ertek) :- 
+		%format('alpha_beta1\r\n',[]),
+		ertek(Tabla,Ertek).
+    alpha_beta(D,Tabla,Alpha,Beta,Lepes,Ertek) :- 
+		%format('alpha_beta2\r\n',[]),
+		findall(M,lep(Tabla,M),Lepesek),
         Alpha1 is -Beta, 
 		Beta1 is -Alpha, 
         D1 is D-1,
-%		 format(D1,[]),
-		evaluate_and_choose(Moves,Position,D1,Alpha1,Beta1,nil,(Move,Value)).
+%		 %format(D1,[]),
+		kiertekel(Lepesek,Tabla,D1,Alpha1,Beta1,nil,(Lepes,Ertek)).
 
-    cutoff(Move,Value,D,Alpha,Beta,Moves,Position,Move1,(Move,Value)) :- 
-		format('cutoff1\r\n',[]),
-		Value >= Beta.
-    cutoff(Move,Value,D,Alpha,Beta,Moves,Position,Move1,BestMove) :-
-		format('cutoff2\r\n',[]),
-        Alpha < Value, Value < Beta, 
-		evaluate_and_choose(Moves,Position,D,Value,Beta,Move,BestMove).
-    cutoff(Move,Value,D,Alpha,Beta,Moves,Position,Move1,BestMove) :-
-		format('cutoff3\r\n',[]),
-        Value =< Alpha, 
-		evaluate_and_choose(Moves,Position,D,Alpha,Beta,Move1,BestMove).
+    levag(Lepes,Ertek,D,Alpha,Beta,Lepesek,Tabla,Lepes1,(Lepes,Ertek)) :- 
+		%format('levag1\r\n',[]),
+		Ertek >= Beta.
+    levag(Lepes,Ertek,D,Alpha,Beta,Lepesek,Tabla,Lepes1,LegjobbLepes) :-
+		%format('levag2\r\n',[]),
+        Alpha < Ertek, Ertek < Beta, 
+		kiertekel(Lepesek,Tabla,D,Ertek,Beta,Lepes,LegjobbLepes).
+    levag(Lepes,Ertek,D,Alpha,Beta,Lepesek,Tabla,Lepes1,LegjobbLepes) :-
+		%format('levag3\r\n',[]),
+        Ertek =< Alpha, 
+		kiertekel(Lepesek,Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes).
 
-     move(Board,[M|Ms]) :- 
+     lep(Tabla,[M|Ms]) :- 
         member(M,[1,2,3,4,5,6]), 
-	stones_in_hole(M,Board,N),
-        extend_move(N,M,Board,Ms).
-     move(board([0,0,0,0,0,0],K,Ys,L),[]).
+	darab(M,Tabla,N),
+        lepesek_kiterjesztese(N,M,Tabla,Ms).
+     lep(tabla([0,0,0,0,0,0],K,Ys,L),[]).
 
-     stones_in_hole(M,board(Hs,K,Ys,L),Stones) :-
-	nth_member(M,Hs,Stones), Stones > 0.
+     darab(M,tabla(Hs,K,Ys,L),Kovek) :-
+	n_edik_elem(M,Hs,Kovek), Kovek > 0.
 
-     extend_move(Stones,M,Board,[]) :-
-	Stones =\= (7-M) mod 13, !.
-     extend_move(Stones,M,Board,Ms) :- 
-	Stones =:= (7-M) mod 13, !, 
-        distribute_stones(Stones,M,Board,Board1),
-	move(Board1,Ms).
+     lepesek_kiterjesztese(Kovek,M,Tabla,[]) :-
+	Kovek =\= (7-M) mod 13, !.
+     lepesek_kiterjesztese(Kovek,M,Tabla,Ms) :- 
+	Kovek =:= (7-M) mod 13, !, 
+        kovek_kiosztasa(Kovek,M,Tabla,Tabla1),
+	lep(Tabla1,Ms).
 
-/*  Executing a move  */
 
-     move([N|Ns],Board,FinalBoard) :- 
-       stones_in_hole(N,Board,Stones),
-       distribute_stones(Stones,N,Board,Board1),
-       move(Ns,Board1,FinalBoard).
-     move([],Board1,Board2) :-
-	swap(Board1,Board2).
+     lep([N|Ns],Tabla,VegsoTabla) :- 
+       darab(N,Tabla,Kovek),
+       kovek_kiosztasa(Kovek,N,Tabla,Tabla1),
+       lep(Ns,Tabla1,VegsoTabla).
+     lep([],Tabla1,Tabla2) :-
+	csere(Tabla1,Tabla2).
 
-/*  distribute_stones(Stones,Hole,Board,Board1) :-
-	Board1 is the result of distributing the number of stones,
-	Stones, from Hole from the current Board.
-	It consists of two stages: distributing the stones in the player's
-	holes, distribute_my_holes, and distributing the stones in 
-	the opponent's holes, distribute_your_holes.
-*/
+kovek_kiosztasa(Kovek,Hole,Tabla,VegsoTabla) :-
+   sajat_kiosztas(Kovek,Hole,Tabla,Tabla1,Kovek1),
+   masik_kiosztas(Kovek1,Tabla1,VegsoTabla).
 
-distribute_stones(Stones,Hole,Board,FinalBoard) :-
-   distribute_my_holes(Stones,Hole,Board,Board1,Stones1),
-   distribute_your_holes(Stones1,Board1,FinalBoard).
-
-distribute_my_holes(Stones,N,board(Hs,K,Ys,L),board(Hs1,K1,Ys,L),Stones1) :-
-  Stones > 7-N, !, 
-  pick_up_and_distribute(N,Stones,Hs,Hs1),
-  K1 is K+1, Stones1 is Stones+N-7.
-distribute_my_holes(Stones,N,board(Hs,K,Ys,L),Board,0) :-
-  pick_up_and_distribute(N,Stones,Hs,Hs1),
-  check_capture(N,Stones,Hs1,Hs2,Ys,Ys1,Pieces),
-  update_kalah(Pieces,N,Stones,K,K1),
-  check_if_finished(board(Hs2,K1,Ys1,L),Board).
+sajat_kiosztas(Kovek,N,tabla(Hs,K,Ys,L),tabla(Hs1,K1,Ys,L),Kovek1) :-
+  Kovek > 7-N, !, 
+  felvesz_es_kioszt(N,Kovek,Hs,Hs1),
+  K1 is K+1, Kovek1 is Kovek+N-7.
+sajat_kiosztas(Kovek,N,tabla(Hs,K,Ys,L),Tabla,0) :-
+  felvesz_es_kioszt(N,Kovek,Hs,Hs1),
+  zsakmany_ellenoriz(N,Kovek,Hs1,Hs2,Ys,Ys1,Darabok),
+  kalah_frissitese(Darabok,N,Kovek,K,K1),
+  befejezodott_e(tabla(Hs2,K1,Ys1,L),Tabla).
 				       
-check_capture(N,Stones,Hs,Hs1,Ys,Ys1,Pieces) :-
-  FinishingHole is N+Stones,
-  nth_member(FinishingHole,Hs,1),
-  OppositeHole is 7-FinishingHole,
-  nth_member(OppositeHole,Ys,Y),
+zsakmany_ellenoriz(N,Kovek,Hs,Hs1,Ys,Ys1,Darabok) :-
+  VegsoLyuk is N+Kovek,
+  n_edik_elem(VegsoLyuk,Hs,1),
+  EllenkezoLyuk is 7-VegsoLyuk,
+  n_edik_elem(EllenkezoLyuk,Ys,Y),
   Y > 0, !,
-  n_substitute(OppositeHole,Ys,0,Ys1),
-  n_substitute(FinishingHole,Hs,0,Hs1),
-  Pieces is Y+1.
-check_capture(N,Stones,Hs,Hs,Ys,Ys,0) :- !.
+  n_helyettesites(EllenkezoLyuk,Ys,0,Ys1),
+  n_helyettesites(VegsoLyuk,Hs,0,Hs1),
+  Darabok is Y+1.
+zsakmany_ellenoriz(N,Kovek,Hs,Hs,Ys,Ys,0) :- !.
 
-check_if_finished(board(Hs,K,Ys,L),board(Hs,K,Hs,L1)) :-
-  zero(Hs), !, sumlist(Ys,YsSum), L1 is L+YsSum.
-check_if_finished(board(Hs,K,Ys,L),board(Ys,K1,Ys,L)) :-
-  zero(Ys), !, sumlist(Hs,HsSum), K1 is K+HsSum.
-check_if_finished(Board,Board) :- !.
+befejezodott_e(tabla(Hs,K,Ys,L),tabla(Hs,K,Hs,L1)) :-
+  ures(Hs), !, sumlist(Ys,YsSum), L1 is L+YsSum.
+befejezodott_e(tabla(Hs,K,Ys,L),tabla(Ys,K1,Ys,L)) :-
+  ures(Ys), !, sumlist(Hs,HsSum), K1 is K+HsSum.
+befejezodott_e(Tabla,Tabla) :- !.
     
-update_kalah(0,Stones,N,K,K) :- Stones < 7-N, !.
-update_kalah(0,Stones,N,K,K1) :- Stones =:= 7-N, !, K1 is K+1.
-update_kalah(Pieces,Stones,N,K,K1) :- Pieces > 0, !, K1 is K+Pieces.
+kalah_frissitese(0,Kovek,N,K,K) :- Kovek < 7-N, !.
+kalah_frissitese(0,Kovek,N,K,K1) :- Kovek =:= 7-N, !, K1 is K+1.
+kalah_frissitese(Darabok,Kovek,N,K,K1) :- Darabok > 0, !, K1 is K+Darabok.
 
-distribute_your_holes(0,Board,Board) :- !.
-distribute_your_holes(Stones,board(Hs,K,Ys,L),board(Hs,K,Ys1,L)) :-
-  1 =< Stones, Stones =< 6, 
-  non_zero(Hs), !, 
-  distribute(Stones,Ys,Ys1).
-distribute_your_holes(Stones,board(Hs,K,Ys,L),board(Hs,K,Ys1,L)) :-
-  Stones > 6, !, 
-  distribute(6,Ys,Ys1),
-  Stones1 is Stones-6,
-  distribute_stones(Stones1,0,board(Hs,K,Ys1,L),Board).
-distribute_your_holes(Stones,board(Hs,K,Ys,L),board(Hs,K,Hs,L1)) :-
-  zero(Hs), !, sumlist(Ys,YsSum), L1 is Stones+YsSum+L.
+masik_kiosztas(0,Tabla,Tabla) :- !.
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L)) :-
+  1 =< Kovek, Kovek =< 6, 
+  nem_ures(Hs), !, 
+  kiosztas(Kovek,Ys,Ys1).
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L)) :-
+  Kovek > 6, !, 
+  kiosztas(6,Ys,Ys1),
+  Kovek1 is Kovek-6,
+  kovek_kiosztasa(Kovek1,0,tabla(Hs,K,Ys1,L),Tabla).
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Hs,L1)) :-
+  ures(Hs), !, sumlist(Ys,YsSum), L1 is Kovek+YsSum+L.
 
-/*  Lower level stone distribution    */
 
-pick_up_and_distribute(0,N,Hs,Hs1) :-
-  !, distribute(N,Hs,Hs1).
-pick_up_and_distribute(1,N,[H|Hs],[0|Hs1]) :-
-  !, distribute(N,Hs,Hs1).
-pick_up_and_distribute(K,N,[H|Hs],[H|Hs1]) :- 
-  K > 1, !, K1 is K-1, pick_up_and_distribute(K1,N,Hs,Hs1).
+felvesz_es_kioszt(0,N,Hs,Hs1) :-
+  !, kiosztas(N,Hs,Hs1).
+felvesz_es_kioszt(1,N,[H|Hs],[0|Hs1]) :-
+  !, kiosztas(N,Hs,Hs1).
+felvesz_es_kioszt(K,N,[H|Hs],[H|Hs1]) :- 
+  K > 1, !, K1 is K-1, felvesz_es_kioszt(K1,N,Hs,Hs1).
 
-     distribute(0,Hs,Hs) :- !.
-     distribute(N,[H|Hs],[H1|Hs1]) :-
-        N > 0, !, N1 is N-1, H1 is H+1, distribute(N1,Hs,Hs1).
-     distribute(N,[],[]) :- !.
+     kiosztas(0,Hs,Hs) :- !.
+     kiosztas(N,[H|Hs],[H1|Hs1]) :-
+        N > 0, !, N1 is N-1, H1 is H+1, kiosztas(N1,Hs,Hs1).
+     kiosztas(N,[],[]) :- !.
 
-/*   Evaluation function	*/
+     ertek(tabla(H,K,Y,L),Ertek) :- Ertek is K-L.
 
-     value(board(H,K,Y,L),Value) :- Value is K-L.
+     vege_van_e(tabla(0,N,0,N),Jatekos,draw) :-
+	darabok(K), N =:= 6*K, !.
+     vege_van_e(tabla(H,K,Y,L),Jatekos,Jatekos) :- 
+	darabok(N), K > 6*N, !.
+     vege_van_e(tabla(H,K,Y,L),Jatekos,Opponent) :-
+	darabok(N), L > 6*N, kovetkezo_jatekos(Jatekos,Opponent).
 
-/*  Testing for the end of the game	*/
+     eredmenyhirdetes(ellenfel) :- writeln(['On nyert!']).
+     eredmenyhirdetes(computer) :- writeln(['On vesztett!']).
+     eredmenyhirdetes(draw) :- writeln(['Dontetlen.']).
 
-     game_over(board(0,N,0,N),Player,draw) :-
-	pieces(K), N =:= 6*K, !.
-     game_over(board(H,K,Y,L),Player,Player) :- 
-	pieces(N), K > 6*N, !.
-     game_over(board(H,K,Y,L),Player,Opponent) :-
-	pieces(N), L > 6*N, next_player(Player,Opponent).
+	n_edik_elem(N,[H|Hs],K) :-
+	    N > 1, !, N1 is N - 1, n_edik_elem(N1,Hs,K).
+	n_edik_elem(1,[H|Hs],H).
 
-     announce(opponent) :- writeln(['You won! Congratulations.']).
-     announce(computer) :- writeln(['I won.']).
-     announce(draw) :- writeln(['The game is a draw.']).
-
-/*  Miscellaneous game utilities	*/
-
-	nth_member(N,[H|Hs],K) :-
-	    N > 1, !, N1 is N - 1, nth_member(N1,Hs,K).
-	nth_member(1,[H|Hs],H).
-
-n_substitute(1,[X|Xs],Y,[Y|Xs]) :- !.
-n_substitute(N,[X|Xs],Y,[X|Xs1]) :- 
-  N > 1, !, N1 is N-1, n_substitute(N1,Xs,Y,Xs1).
+n_helyettesites(1,[X|Xs],Y,[Y|Xs]) :- !.
+n_helyettesites(N,[X|Xs],Y,[X|Xs1]) :- 
+  N > 1, !, N1 is N-1, n_helyettesites(N1,Xs,Y,Xs1).
 			       
-     next_player(computer,opponent).	
-     next_player(opponent,computer).
+     kovetkezo_jatekos(computer,ellenfel).	
+     kovetkezo_jatekos(ellenfel,computer).
 
-     legal([N|Ns]) :-  0 < N, N < 7, legal(Ns).
-     legal([]).
+     szabalyos_e([N|Ns]) :-  0 < N, N < 7, szabalyos_e(Ns).
+     szabalyos_e([]).
 
-     swap(board(Hs,K,Ys,L),board(Ys,L,Hs,K)).
+     csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
 
-     display_game(Position,computer) :-
-	show(Position).
-     display_game(Position,opponent) :-
-	swap(Position,Position1), show(Position1).
+tabla_megjelenites(Tabla,computer) :-
+kiiras(Tabla).
+     tabla_megjelenites(Tabla,ellenfel) :-
+	csere(Tabla,Tabla1), kiiras(Tabla1).
 
-     show(board(H,K,Y,L)) :-
-        reverse(H,HR), 	write_stones(HR), write_kalahs(K,L), write_stones(Y).
+     kiiras(tabla(H,K,Y,L)) :-
+        reverse(H,HR), 	kovek_kiirasa(HR), kalahok_kiirasa(K,L), kovek_kiirasa(Y).
 
-     write_stones(H) :- 
-	nl, tab(5), display_holes(H).
+     kovek_kiirasa(H) :- 
+	nl, tab(5), lyukak_kiirasa(H).
 
-     display_holes([H|Hs]) :-
-	write_pile(H), display_holes(Hs).
-     display_holes([]) :- nl.
+     lyukak_kiirasa([H|Hs]) :-
+	kupac_kiirasa(H), lyukak_kiirasa(Hs).
+     lyukak_kiirasa([]) :- nl.
 
-	write_pile(N) :- N < 10, write(N), tab(4).
-	write_pile(N) :- N >= 10, write(N), tab(3).
+	kupac_kiirasa(N) :- N < 10, write(N), tab(4).
+	kupac_kiirasa(N) :- N >= 10, write(N), tab(3).
 
-     write_kalahs(K,L) :- 
+     kalahok_kiirasa(K,L) :- 
         write(K), tab(34), write(L), nl.
 
-     zero([0,0,0,0,0,0]).
+     ures([0,0,0,0,0,0]).
 
-     non_zero(Hs) :- Hs \== [0,0,0,0,0,0].
+     nem_ures(Hs) :- Hs \== [0,0,0,0,0,0].
 
-/*  Initializing	*/
+     elore_tekintes(2).
+init(tabla([N,N,N,N,N,N],0,[N,N,N,N,N,N],0),ellenfel) :-
+	darabok(N).
 
-     lookahead(2).
-     initialize(kalah,board([N,N,N,N,N,N],0,[N,N,N,N,N,N],0),opponent) :-
-	pieces(N).
-
-     pieces(6).
-
-%  Program 21.3  A complete program for playing Kalah
+     darabok(6).
