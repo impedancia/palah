@@ -29,6 +29,7 @@ megfelelo_nehezsegi_szint(M) :-
 % Minden körben megnézzük, hogy vége van-e a játéknak. Ha igen akkor kiírjuk
 % az eredményt.
 jatek_kor(Tabla,Jatekos,Eredmeny) :-
+    osszes_kovek_szama(Tabla),
     tabla_megjelenites(Tabla,Jatekos),
     vege_van_e(Tabla,Jatekos,Eredmeny), !,
     eredmenyhirdetes(Eredmeny).
@@ -57,6 +58,11 @@ lepes_valasztas(Tabla,computer,Lepes) :-
     alpha_beta(Melyseg,Tabla,-40,40,Lepes,Ertek),
     nl, write(Lepes), nl.
 
+% A csalás a játékfa kiértékelését elvégezve dönt a következő lépésről, egy mélységgel tovább vizsgálja, mint a gép
+lepes_valasztas(Tabla,cheat,Lepes) :-
+    elore_tekintes(Melyseg), 
+    alpha_beta(Melyseg+1,Tabla,-40,40,Lepes,Ertek),
+    nl, write(Lepes), nl.
 % A játékos lépését a felhasználótól kérdezzük meg.
 lepes_valasztas(Tabla,ellenfel,Lepes) :- 
     lepes_beolvas(Lepes, Tabla).
@@ -64,7 +70,7 @@ lepes_valasztas(Tabla,ellenfel,Lepes) :-
 % A lépést addig olvassuk be, ameddig nem kapunk valós lehetséges értéket.
 lepes_beolvas(Lepes, Tabla) :-
     nl, format('Kerem valasszon lepes(eke)t: ',[]), read(L)
-    ,(cheat_e(L) -> lepes_valasztas(Tabla, computer, Lepes) ; (szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) )).
+    ,(cheat_e(L) -> lepes_valasztas(Tabla, cheat, Lepes) ; (szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) )).
     
 % Egy lépés kiértékelése az alfa-béta algoritmus segítségével.
 kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
@@ -145,8 +151,12 @@ lep([],Tabla1,Tabla2) :-
 
 % A kövek egyenkénti kosztása.
 kovek_kiosztasa(Kovek,Lyuk,Tabla,VegsoTabla) :-
+    %format('kovek_kiosztasa', []),
+    Kovek > 0,!,
     sajat_kiosztas(Kovek,Lyuk,Tabla,Tabla1,Kovek1),
-    masik_kiosztas(Kovek1,Tabla1,VegsoTabla).
+    masik_kiosztas(Kovek1,Tabla1,Tabla2,Kovek2),
+    kovek_kiosztasa(Kovek2,0,Tabla2, VegsoTabla).
+kovek_kiosztasa(0,Lyuk,Tabla,Tabla).
 
 % A kövek saját térfélen való kiosztása.
 sajat_kiosztas(Kovek,N,tabla(Hs,K,Ys,L),tabla(Hs1,K1,Ys,L),Kovek1) :-
@@ -195,21 +205,22 @@ kalah_frissitese(0,Kovek,N,K,K1) :- Kovek =:= 7-N, !, K1 is K+1.
 kalah_frissitese(Darabok,Kovek,N,K,K1) :- Darabok > 0, !, K1 is K+Darabok.
 
 % Az elenfél oldalára is kiosztjuk a köveket ha saját kalahunkon túljutunk.
-masik_kiosztas(0,Tabla,Tabla) :- !.
+masik_kiosztas(0,Tabla,Tabla,Kovek1) :- Kovek1 is 0, !.
 
-masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L)) :-
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L),Kovek1) :-
     1 =< Kovek, Kovek =< 6, 
     nem_ures(Hs), !, 
-    kiosztas(Kovek,Ys,Ys1).
+    kiosztas(Kovek,Ys,Ys1),
+    Kovek1 is 0.
 
-masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L)) :-
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Ys1,L), Kovek1) :-
     Kovek > 6, !, 
     kiosztas(6,Ys,Ys1),
-    Kovek1 is Kovek-6,
-    kovek_kiosztasa(Kovek1,0,tabla(Hs,K,Ys1,L),Tabla).
+    Kovek1 is Kovek-6.
+%    kovek_kiosztasa(Kovek1,0,tabla(Hs,K,Ys1,L),Tabla).
 
-masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Hs,L1)) :-
-    ures(Hs), !, sumlist(Ys,YsSum), L1 is Kovek+YsSum+L.
+masik_kiosztas(Kovek,tabla(Hs,K,Ys,L),tabla(Hs,K,Hs,L1),Kovek1) :-
+    ures(Hs), !, sumlist(Ys,YsSum), L1 is Kovek+YsSum+L, Kovek1 is 0.
 
 % A kövek egyenkénti kiosztásának megvalósítása.
 felvesz_es_kioszt(0,N,Hs,Hs1) :-
@@ -283,13 +294,22 @@ csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
 
 % A megjelenítési logika.
 tabla_megjelenites(Tabla,computer) :-
+    %format('tabla_megjelenites - computer', []),
     kiiras(Tabla).
 
 tabla_megjelenites(Tabla,ellenfel) :-
+    %format('tabla_megjelenites - ellenfel', []),
     csere(Tabla,Tabla1), kiiras(Tabla1).
 
 kiiras(tabla(H,K,Y,L)) :-
     reverse(H,HR), 	kovek_kiirasa(HR), kalahok_kiirasa(K,L), kovek_kiirasa(Y).
+
+osszes_kovek_szama(tabla(H,K,Y,L)) :-
+    darabok(D),
+    sumlist(Y,YSum),
+    sumlist(H,HSum),
+    KK is K+L+HSum+YSum,
+    format('~d', [KK]).
 
 kovek_kiirasa(H) :- 
     nl, tab(5), lyukak_kiirasa(H).
