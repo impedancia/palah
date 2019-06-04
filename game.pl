@@ -64,7 +64,7 @@ lepes_valasztas(Tabla,ellenfel,Lepes) :-
 % A lépést addig olvassuk be, ameddig nem kapunk valós lehetséges értéket.
 lepes_beolvas(Lepes, Tabla) :-
     nl, format('Kerem valasszon lepes(eke)t: ',[]), read(L)
-    ,(szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) ).
+    ,(cheat_e(L) -> lepes_valasztas(Tabla, computer, Lepes) ; (szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) )).
     
 % Egy lépés kiértékelése az alfa-béta algoritmus segítségével.
 kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
@@ -144,8 +144,8 @@ lep([],Tabla1,Tabla2) :-
     csere(Tabla1,Tabla2).
 
 % A kövek egyenkénti kosztása.
-kovek_kiosztasa(Kovek,Hole,Tabla,VegsoTabla) :-
-    sajat_kiosztas(Kovek,Hole,Tabla,Tabla1,Kovek1),
+kovek_kiosztasa(Kovek,Lyuk,Tabla,VegsoTabla) :-
+    sajat_kiosztas(Kovek,Lyuk,Tabla,Tabla1,Kovek1),
     masik_kiosztas(Kovek1,Tabla1,VegsoTabla).
 
 % A kövek saját térfélen való kiosztása.
@@ -271,13 +271,12 @@ kovetkezo_jatekos(ellenfel,computer).
 % A kapott lépés szabályosságát ellenőrzi, figyelembe véve, hogy
 % több lépés egymásutánja is szabályos-e.
 szabalyos_e([N|Ns], Tabla) :- 
-    0 < N, N < 7,
-    darab(N,Tabla,Kovek),
-    Kovek > 0,
     lep(Tabla, [N|Ns]),
     szabalyos_e(Ns, Tabla).
-
 szabalyos_e([],Tabla).
+
+cheat_e([N|NS]) :-
+    N = 9999.
 
 % A két táblarész cseréje.
 csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
