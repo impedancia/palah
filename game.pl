@@ -19,12 +19,22 @@ start :-
 % A nehézségi szint azt határozza meg, hogy az alfa-beta algoritmus milyen
 % mélységben tekintsen előre a legjobb lépés meghatározása során.
 melyseg_beolvas(Melyseg) :-
-    nl, format('Kerem valasszon nehezseget (1..4): ',[]), read(M),
-    (megfelelo_nehezsegi_szint(M)  -> Melyseg = M ; melyseg_beolvas(Melyseg)).
+    get_szam(D,'Kerem valasszon nehezseget (1..4): '),
+    (megfelelo_nehezsegi_szint(D)  -> Melyseg = D,format('Választott nehézség ~d', [D]),nl ; melyseg_beolvas(Melyseg)).
 
 % A nehézségi szint 1-től 4-ig terjedhet.
 megfelelo_nehezsegi_szint(M) :-
     member(M,[1,2,3,4]).
+
+get_szam(N, Uzenet) :-
+    nl, format(Uzenet,[]), get_code(M),skip_line,
+    (type_of_character(M, digit) -> number_codes(N,[M]),  number(N) ;get_szam(N, Uzenet))
+    .
+type_of_character(Ch, Type) :-
+             Ch >= "0", Ch =< "9",
+             !,
+             Type = digit.
+type_of_character(Ch, other).
 
 % Minden körben megnézzük, hogy vége van-e a játéknak. Ha igen akkor kiírjuk
 % az eredményt.
@@ -69,8 +79,8 @@ lepes_valasztas(Tabla,ellenfel,Lepes) :-
 
 % A lépést addig olvassuk be, ameddig nem kapunk valós lehetséges értéket.
 lepes_beolvas(Lepes, Tabla) :-
-    nl, format('Kerem valasszon lepes(eke)t: ',[]), read(L)
-    ,(cheat_e(L) -> lepes_valasztas(Tabla, cheat, Lepes) ; (szabalyos_e(L, Tabla) -> Lepes = L ; lepes_beolvas(Lepes, Tabla) )).
+    get_szam(N,'Kerem valasszon lepest: '),
+    (cheat_e([N]) -> lepes_valasztas(Tabla, cheat, Lepes) ; (szabalyos_e([N], Tabla) -> Lepes = [N] ; lepes_beolvas(Lepes, Tabla) )).
     
 % Egy lépés kiértékelése az alfa-béta algoritmus segítségével.
 kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
@@ -232,7 +242,6 @@ felvesz_es_kioszt(1,N,[H|Hs],[0|Hs1]) :-
 felvesz_es_kioszt(K,N,[H|Hs],[H|Hs1]) :- 
     K > 1, !, K1 is K-1, felvesz_es_kioszt(K1,N,Hs,Hs1).
 
-
 kiosztas(0,Hs,Hs) :- !.
 
 kiosztas(N,[H|Hs],[H1|Hs1]) :-
@@ -287,7 +296,7 @@ szabalyos_e([N|Ns], Tabla) :-
 szabalyos_e([],Tabla).
 
 cheat_e([N|NS]) :-
-    N = 9999.
+    N = 9.
 
 % A két táblarész cseréje.
 csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
