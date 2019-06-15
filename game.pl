@@ -49,15 +49,25 @@ jatek_kor(Tabla,Jatekos,Eredmeny) :-
 jatek_kor(Tabla,computer,Eredmeny) :-
     lepes_valasztas(Tabla,Jatekos,Lepes),
     lep(Lepes,Tabla,Tabla1),
-    kovetkezo_jatekos(Jatekos,Jatekos1),!, 
-    jatek_kor(Tabla1,Jatekos1,Eredmeny).
+    csere(Tabla1,Tabla2), 
+    kovetkezo_jatekos(computer,Jatekos1),!,
+    jatek_kor(Tabla2,Jatekos1,Eredmeny).
 
 jatek_kor(Tabla,ellenfel,Eredmeny) :-
 %    format('~s', [Jatekos]),
     lepes_valasztas(Tabla,ellenfel,Lepes),
-    lep(Lepes,Tabla,Tabla1),
-    kovetkezo_jatekos(ellenfel,Jatekos1),!, 
-    jatek_kor(Tabla1,Jatekos1,Eredmeny).
+    (kalahban_vegzodik(Lepes,Tabla) ->
+      format('kalahban vegzodott', []),
+      lep(Lepes,Tabla,Tabla1),
+%      csere(Tabla,Tabla1),
+      format('lepes_utan', []),
+      jatek_kor(Tabla1,ellenfel,Eredmeny)
+    ;
+    format('nem kalahban vegzodott', []),
+      lep(Lepes,Tabla,Tabla1),
+      csere(Tabla1,Tabla2),
+      kovetkezo_jatekos(ellenfel,Jatekos1),!,
+      jatek_kor(Tabla2,Jatekos1,Eredmeny)).
 
 % N darab szóköz karakter kiírása.
 tab(N) :-
@@ -145,6 +155,13 @@ lep(tabla([0,0,0,0,0,0],K,Ys,L),[]).
 darab(M,tabla(Hs,K,Ys,L),Kovek) :-
     n_edik_elem(M,Hs,Kovek), Kovek > 0.
 
+kalahban_vegzodik([N|Ns], Tabla) :-
+    darab(N,Tabla,Kovek),
+    Eredmeny = (7-N) mod 13,
+    format('(7-N) mod 13 : ~d ', [Eredmeny]),
+    format('Kovek : ~d',[Kovek]),
+    Kovek =:= (7-N) mod 13.
+
 % Az újabb lépés feltétele, hogy az aktuális lépés utolsó köve a
 % kalahba essen. Ez a szabály akkor lesz sikeres, ha nincs új lépés.
 lepesek_kiterjesztese(Kovek,M,Tabla,[]) :-
@@ -165,8 +182,8 @@ lep([N|Ns],Tabla,VegsoTabla) :-
 
 % A lépések végrehajtása során ha a lépés végére értünk, megcseréljük
 % a két táblarészt.
-lep([],Tabla1,Tabla2) :-
-    csere(Tabla1,Tabla2).
+lep([],Tabla1,Tabla2):-
+    Tabla2 = Tabla1.
 
 % A kövek egyenkénti kosztása.
 kovek_kiosztasa(Kovek,Lyuk,Tabla,VegsoTabla) :-
@@ -320,7 +337,8 @@ tabla_megjelenites(Tabla,computer) :-
 
 tabla_megjelenites(Tabla,ellenfel) :-
     format('játékos', []),
-    csere(Tabla,Tabla1), kiiras(Tabla1).
+    csere(Tabla,Tabla1),
+    kiiras(Tabla1).
 
 kiiras(tabla(H,K,Y,L)) :-
     reverse(H,HR), 	kovek_kiirasa(HR), kalahok_kiirasa(K,L), kovek_kiirasa(Y).
