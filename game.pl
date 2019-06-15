@@ -46,10 +46,17 @@ jatek_kor(Tabla,Jatekos,Eredmeny) :-
 
 % Ha nem volt vége a játéknak, akkor lépést választunk, lépünk, és a következő
 % játékosnak adjuk át az irányítást.
-jatek_kor(Tabla,Jatekos,Eredmeny) :-
+jatek_kor(Tabla,computer,Eredmeny) :-
     lepes_valasztas(Tabla,Jatekos,Lepes),
     lep(Lepes,Tabla,Tabla1),
     kovetkezo_jatekos(Jatekos,Jatekos1),!, 
+    jatek_kor(Tabla1,Jatekos1,Eredmeny).
+
+jatek_kor(Tabla,ellenfel,Eredmeny) :-
+%    format('~s', [Jatekos]),
+    lepes_valasztas(Tabla,ellenfel,Lepes),
+    lep(Lepes,Tabla,Tabla1),
+    kovetkezo_jatekos(ellenfel,Jatekos1),!, 
     jatek_kor(Tabla1,Jatekos1,Eredmeny).
 
 % N darab szóköz karakter kiírása.
@@ -80,7 +87,9 @@ lepes_valasztas(Tabla,ellenfel,Lepes) :-
 % A lépést addig olvassuk be, ameddig nem kapunk valós lehetséges értéket.
 lepes_beolvas(Lepes, Tabla) :-
     get_szam(N,'Kerem valasszon lepest: '),
-    (cheat_e([N]) -> lepes_valasztas(Tabla, cheat, Lepes) ; (szabalyos_e([N], Tabla) -> Lepes = [N] ; lepes_beolvas(Lepes, Tabla) )).
+    (cheat_e([N]) -> lepes_valasztas(Tabla, cheat, Lepes)
+    ; (kilepes_e([N]) -> format('Köszönöm a játékot', []), halt ;
+       (szabalyos_e([N], Tabla) -> Lepes = [N] ; lepes_beolvas(Lepes, Tabla) ))).
     
 % Egy lépés kiértékelése az alfa-béta algoritmus segítségével.
 kiertekel([Lepes|Lepesek],Tabla,D,Alpha,Beta,Lepes1,LegjobbLepes) :-
@@ -291,23 +300,26 @@ kovetkezo_jatekos(ellenfel,computer).
 % A kapott lépés szabályosságát ellenőrzi, figyelembe véve, hogy
 % több lépés egymásutánja is szabályos-e.
 szabalyos_e([N|Ns], Tabla) :- 
-    lep(Tabla, [N|Ns]),
+    0 < N, N < 7,
+    darab(N,Tabla,Kovek),
+    Kovek > 0,
     szabalyos_e(Ns, Tabla).
 szabalyos_e([],Tabla).
 
 cheat_e([N|NS]) :-
     N = 9.
-
+kilepes_e([N|NS]) :-
+    N = 0.
 % A két táblarész cseréje.
 csere(tabla(Hs,K,Ys,L),tabla(Ys,L,Hs,K)).
 
 % A megjelenítési logika.
 tabla_megjelenites(Tabla,computer) :-
-    %format('tabla_megjelenites - computer', []),
+    format('computer', []),
     kiiras(Tabla).
 
 tabla_megjelenites(Tabla,ellenfel) :-
-    %format('tabla_megjelenites - ellenfel', []),
+    format('játékos', []),
     csere(Tabla,Tabla1), kiiras(Tabla1).
 
 kiiras(tabla(H,K,Y,L)) :-
@@ -318,7 +330,7 @@ osszes_kovek_szama(tabla(H,K,Y,L)) :-
     sumlist(Y,YSum),
     sumlist(H,HSum),
     KK is K+L+HSum+YSum,
-    format('~d', [KK]).
+    format('Összes kövek száma: ~d\r\n', [KK]).
 
 kovek_kiirasa(H) :- 
     nl, tab(5), lyukak_kiirasa(H).
