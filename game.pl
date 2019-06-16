@@ -19,12 +19,12 @@ start :-
 % A nehézségi szint azt határozza meg, hogy az alfa-beta algoritmus milyen
 % mélységben tekintsen előre a legjobb lépés meghatározása során.
 melyseg_beolvas(Melyseg) :-
-    get_szam(D,'Kerem valasszon nehezseget (1..4): '),
+    get_szam(D,'Kerem valasszon nehezseget (1..9): '),
     (megfelelo_nehezsegi_szint(D)  -> Melyseg = D,format('Választott nehézség ~d', [D]),nl ; melyseg_beolvas(Melyseg)).
 
 % A nehézségi szint 1-től 4-ig terjedhet.
 megfelelo_nehezsegi_szint(M) :-
-    member(M,[1,2,3,4]).
+    member(M,[1,2,3,4,5,6,7,8,9]).
 
 get_szam(N, Uzenet) :-
     nl, format(Uzenet,[]), get_code(M),skip_line,
@@ -47,27 +47,33 @@ jatek_kor(Tabla,Jatekos,Eredmeny) :-
 % Ha nem volt vége a játéknak, akkor lépést választunk, lépünk, és a következő
 % játékosnak adjuk át az irányítást.
 jatek_kor(Tabla,computer,Eredmeny) :-
-    lepes_valasztas(Tabla,Jatekos,Lepes),
+    lepes_valasztas(Tabla,computer,Lepes),
     lep(Lepes,Tabla,Tabla1),
-    csere(Tabla1,Tabla2), 
     kovetkezo_jatekos(computer,Jatekos1),!,
-    jatek_kor(Tabla2,Jatekos1,Eredmeny).
+    jatek_kor(Tabla1,Jatekos1,Eredmeny).
 
 jatek_kor(Tabla,ellenfel,Eredmeny) :-
 %    format('~s', [Jatekos]),
     lepes_valasztas(Tabla,ellenfel,Lepes),
-    (kalahban_vegzodik(Lepes,Tabla) ->
-      format('kalahban vegzodott', []),
-      lep(Lepes,Tabla,Tabla1),
-%      csere(Tabla,Tabla1),
-      format('lepes_utan', []),
-      jatek_kor(Tabla1,ellenfel,Eredmeny)
+    (cheat_e(Lepes) ->
+      format('cheat', []),
+      cheat_levalaszt(Lepes,Lepes2),
+        lep(Lepes2,Tabla,Tabla1),
+	kovetkezo_jatekos(ellenfel,Jatekos1),!,
+        jatek_kor(Tabla1,Jatekos1,Eredmeny)
     ;
-    format('nem kalahban vegzodott', []),
-      lep(Lepes,Tabla,Tabla1),
-      csere(Tabla1,Tabla2),
-      kovetkezo_jatekos(ellenfel,Jatekos1),!,
-      jatek_kor(Tabla2,Jatekos1,Eredmeny)).
+        (kalahban_vegzodik(Lepes,Tabla), nem_ures_tabla(Tabla) ->
+%	    format('kalahban vegzodott es nem ures a tabla', []),
+	    lep_jatekos(Lepes,Tabla,Tabla1),
+	    %csere(Tabla,Tabla1),
+	    format('lepes_utan', []),
+	    jatek_kor(Tabla1,ellenfel,Eredmeny)
+	;
+%	    format('nem kalahban vegzodott vagy ures a tabla', []),
+	    lep(Lepes,Tabla,Tabla1),
+%	    csere(Tabla1,Tabla2),
+	    kovetkezo_jatekos(ellenfel,Jatekos1),!,
+	    jatek_kor(Tabla1,Jatekos1,Eredmeny))).
 
 % N darab szóköz karakter kiírása.
 tab(N) :-
@@ -86,10 +92,11 @@ lepes_valasztas(Tabla,computer,Lepes) :-
     nl, write(Lepes), nl.
 
 % A csalás a játékfa kiértékelését elvégezve dönt a következő lépésről, egy mélységgel tovább vizsgálja, mint a gép
-lepes_valasztas(Tabla,cheat,Lepes) :-
+lepes_valasztas(Tabla,cheat,Lepes2) :-
     elore_tekintes(Melyseg), 
     alpha_beta(Melyseg+1,Tabla,-40,40,Lepes,Ertek),
-    nl, write(Lepes), nl.
+    append([9],Lepes, Lepes2),
+    nl, write(Lepes2), nl.
 % A játékos lépését a felhasználótól kérdezzük meg.
 lepes_valasztas(Tabla,ellenfel,Lepes) :- 
     lepes_beolvas(Lepes, Tabla).
@@ -183,6 +190,16 @@ lep([N|Ns],Tabla,VegsoTabla) :-
 % A lépések végrehajtása során ha a lépés végére értünk, megcseréljük
 % a két táblarészt.
 lep([],Tabla1,Tabla2):-
+    csere(Tabla1, Tabla2).
+
+lep_jatekos([N|Ns],Tabla,VegsoTabla) :- 
+    darab(N,Tabla,Kovek),
+    kovek_kiosztasa(Kovek,N,Tabla,Tabla1),
+    lep_jatekos(Ns,Tabla1,VegsoTabla).
+
+% A lépések végrehajtása során ha a lépés végére értünk, megcseréljük
+% a két táblarészt.
+lep_jatekos([],Tabla1,Tabla2):-
     Tabla2 = Tabla1.
 
 % A kövek egyenkénti kosztása.
@@ -324,7 +341,13 @@ szabalyos_e([N|Ns], Tabla) :-
 szabalyos_e([],Tabla).
 
 cheat_e([N|NS]) :-
-    N = 9.
+%    format('N: ~d', [N]),
+    N =:= 9.
+cheat_levalaszt([N|Ns], Lepes) :-
+    (N =:= 9 ->
+      Lepes = Ns ;
+      Lepes = [N|Ns]).
+
 kilepes_e([N|NS]) :-
     N = 0.
 % A két táblarész cseréje.
@@ -349,6 +372,9 @@ osszes_kovek_szama(tabla(H,K,Y,L)) :-
     sumlist(H,HSum),
     KK is K+L+HSum+YSum,
     format('Összes kövek száma: ~d\r\n', [KK]).
+    
+%   , elore_tekintes(M),
+%    format('Előre tekintés: ~d\r\n', [M]).
 
 kovek_kiirasa(H) :- 
     nl, tab(5), lyukak_kiirasa(H).
@@ -369,6 +395,8 @@ kalahok_kiirasa(K,L) :-
 ures([0,0,0,0,0,0]).
 
 nem_ures(Hs) :- Hs \== [0,0,0,0,0,0].
+nem_ures_tabla(tabla(Hs,K,Ys,L)) :-
+    nem_ures(Hs).
 
 % Az alfa-béta algroitmus előre-tekintési paramétere.
 % Ezt a program indításkor bekéri a felhasználótól.
